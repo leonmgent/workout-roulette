@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workout Roulette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF8F3;
+    --ink:#111111;
+    --muted:#6E6A62;
+    --rule:#D9D4C7;
+    --yellow:#FFCC00;
+    --row:64px;
+    --serif:"Libre Caslon Text", Georgia, "Times New Roman", serif;
+    --label:"Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--paper);color:var(--ink)}
+  body{
+    font-family:var(--serif);
+    min-height:100vh;min-height:100dvh;
+    display:flex;justify-content:center;
+    padding:32px 16px 48px;
+    -webkit-font-smoothing:antialiased;
+  }
+  main{width:100%;max-width:560px;display:flex;flex-direction:column}
+
+  /* Masthead */
+  .mast{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
+        border-bottom:2px solid var(--ink);padding-bottom:10px}
+  .kicker{font-family:var(--label);font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+          font-size:13px;display:flex;align-items:center;gap:10px}
+  .kicker::before{content:"";width:22px;height:4px;background:var(--yellow);display:inline-block}
+  .issue{font-family:var(--label);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  h1{font-weight:400;font-size:clamp(38px,9vw,56px);line-height:1.02;letter-spacing:-.01em;margin:22px 0 6px}
+  h1 em{font-style:italic}
+  .dek{color:var(--muted);font-style:italic;font-size:16px;line-height:1.5;margin-bottom:28px}
+
+  /* Reels */
+  .section{margin-bottom:22px}
+  .section-label{font-family:var(--label);font-weight:600;font-size:13px;letter-spacing:.18em;
+                 text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+  .reel{position:relative;box-sizing:content-box;height:calc(var(--row) * 3);overflow:hidden;
+        border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+        -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30%,#000 70%,transparent 100%);
+                mask-image:linear-gradient(to bottom,transparent 0,#000 30%,#000 70%,transparent 100%)}
+  .reel::after{content:"";position:absolute;left:0;right:0;top:var(--row);height:var(--row);
+               border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);pointer-events:none}
+  .strip{will-change:transform}
+  .item{height:var(--row);display:flex;align-items:center;
+        font-size:clamp(22px,6vw,34px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+  .item.placeholder{color:var(--muted);font-style:italic}
+  .item.landed span{background:linear-gradient(transparent 62%, var(--yellow) 62%, var(--yellow) 92%, transparent 92%);
+                    padding:0 4px;margin:0 -4px}
+
+  /* Button */
+  .btn{appearance:none;border:0;cursor:pointer;font-family:var(--label);font-weight:700;
+       text-transform:uppercase;letter-spacing:.16em;font-size:18px;
+       background:var(--yellow);color:var(--ink);padding:18px 24px;width:100%;
+       transition:transform .08s ease, opacity .2s ease}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn.ghost{background:transparent;border:1.5px solid var(--ink);font-size:15px;padding:14px 18px}
+  .btn:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+  /* Result panel */
+  .panel{margin-top:30px;border-top:2px solid var(--ink);padding-top:18px;display:none}
+  .panel.show{display:block;animation:fade .4s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .panel .section-label{margin-bottom:4px}
+  .clock{font-family:var(--label);font-weight:600;font-size:clamp(84px,26vw,148px);line-height:1;
+         letter-spacing:.01em;font-variant-numeric:tabular-nums;margin:6px 0 12px}
+  .clock.done{color:var(--muted)}
+  .bar{height:6px;background:var(--rule);margin-bottom:18px;overflow:hidden}
+  .bar i{display:block;height:100%;width:100%;background:var(--yellow);transform-origin:left;transform:scaleX(1)}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .controls .btn:first-child:last-child{grid-column:1 / -1}
+  .note{font-size:20px;line-height:1.45}
+  .note em{color:var(--muted)}
+  .caption{margin-top:auto;padding-top:40px;font-family:var(--label);font-size:12px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--muted);border-top:1px solid var(--rule);margin-top:40px;padding-top:12px}
+
+  @media (max-width:420px){ :root{--row:54px} body{padding-top:22px} }
+  @media (prefers-reduced-motion:reduce){ .panel.show{animation:none} }
+</style>
+</head>
+<body>
+<main>
+  <header class="mast">
+    <div class="kicker">Field Log</div>
+    <div class="issue" id="issue">Set No. 0</div>
+  </header>
+
+  <h1>Today's <em>Workout</em></h1>
+  <p class="dek">One exercise. One sentence. Press the button and accept your fate.</p>
+
+  <section class="section">
+    <div class="section-label"><span>I. Exercise</span></div>
+    <div class="reel" id="reelEx"><div class="strip"></div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-label"><span>II. Duration</span></div>
+    <div class="reel" id="reelDur"><div class="strip"></div></div>
+  </section>
+
+  <button class="btn" id="roll">Roll</button>
+
+  <section class="panel" id="panel">
+    <div class="section-label"><span id="panelLabel">Countdown</span><span id="panelStatus"></span></div>
+    <div id="panelBody"></div>
+  </section>
+
+  <p class="caption">Rest when needed. Form over speed.</p>
+</main>
+
+<script>
+(() => {
+  const EXERCISES = ["Bicycle crunches","Bird dog","Leg raises","Plank","Mountain climbers","Squats","Lunges","Press-ups"];
+  const DURATIONS = [
+    {label:"2 min", secs:120},
+    {label:"5 min", secs:300},
+    {label:"30 reps", type:"reps"},
+    {label:"15 reps", type:"reps"},
+    {label:"0 — you're lucky", type:"zero"},
+    {label:"Till you can't do any more", type:"fail"}
+  ];
+
+  const reelEx = document.getElementById('reelEx');
+  const reelDur = document.getElementById('reelDur');
+  const rollBtn = document.getElementById('roll');
+  const panel = document.getElementById('panel');
+  const panelLabel = document.getElementById('panelLabel');
+  const panelStatus = document.getElementById('panelStatus');
+  const panelBody = document.getElementById('panelBody');
+  const issue = document.getElementById('issue');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let rolls = 0;
+  let timer = null;      // {total, remaining, endAt, raf, running}
+  let wakeLock = null;
+
+  const rand = n => Math.floor(Math.random() * n);
+  const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function render(strip, labels, landedIndex = -1, placeholder = false){
+    strip.innerHTML = labels.map((l, i) =>
+      `<div class="item${i === landedIndex ? ' landed' : ''}${placeholder ? ' placeholder' : ''}"><span>${esc(l)}</span></div>`
+    ).join('');
+  }
+
+  // Initial idle state
+  function idle(reel, text){
+    const strip = reel.querySelector('.strip');
+    render(strip, ['', text, ''], -1, true);
+    strip.style.transform = 'translateY(0)';
+  }
+  idle(reelEx, 'Awaiting roll…');
+  idle(reelDur, 'Awaiting roll…');
+
+  function spin(reel, labels, pickIndex, ms){
+    return new Promise(resolve => {
+      const strip = reel.querySelector('.strip');
+            const seq = [''];                     // blank row above the start
+      let prev = -1;
+      const count = reduceMotion ? 4 : 26 + rand(6);
+      for (let i = 0; i < count; i++){
+        let k; do { k = rand(labels.length); } while (k === prev || (i === count - 1 && k === pickIndex));
+        seq.push(labels[k]); prev = k;
+      }
+      const finalIdx = seq.length;
+      seq.push(labels[pickIndex]);
+      let after; do { after = rand(labels.length); } while (after === pickIndex);
+      seq.push(labels[after]);
+
+      render(strip, seq);
+      const row = strip.firstElementChild.getBoundingClientRect().height;
+      strip.style.transition = 'none';
+      strip.style.transform = 'translateY(0)';
+      void strip.offsetHeight; // reflow
+      const dur = reduceMotion ? 300 : ms;
+      strip.style.transition = `transform ${dur}ms cubic-bezier(.1,.65,.12,1)`;
+      strip.style.transform = `translateY(${-(finalIdx - 1) * row}px)`;
+
+      let done = false;
+      const finish = () => {
+        if (done) return; done = true;
+        strip.children[finalIdx].classList.add('landed');
+        tick(520, 0.05);
+        resolve();
+      };
+      strip.addEventListener('transitionend', finish, {once:true});
+      setTimeout(finish, dur + 80);
+    });
+  }
+
+  // ---------- Audio ----------
+  let ctx = null;
+  function audio(){
+    if (!ctx){ try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+    if (ctx && ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function tick(freq = 880, len = 0.12, vol = 0.18, delay = 0){
+    const a = audio(); if (!a) return;
+    const t = a.currentTime + delay;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    o.connect(g).connect(a.destination);
+    o.start(t); o.stop(t + len + 0.02);
+  }
+  function finale(){ [0, .22, .44].forEach((d,i) => tick(i === 2 ? 1320 : 990, i === 2 ? .5 : .16, .25, d)); }
+
+  async function keepAwake(on){
+    try {
+      if (on && 'wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+      if (!on && wakeLock){ await wakeLock.release(); wakeLock = null; }
+    } catch(e){}
+  }
+
+  // ---------- Timer ----------
+  const fmt = s => {
+    s = Math.max(0, Math.ceil(s));
+    return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+  };
+
+  function stopTimer(){
+    if (timer && timer.raf) cancelAnimationFrame(timer.raf);
+    timer = null; keepAwake(false);
+  }
+
+  function showTimer(exercise, secs){
+    stopTimer();
+    timer = {total: secs, remaining: secs, endAt: 0, raf: 0, running: false, lastBeep: null};
+    panelLabel.textContent = exercise;
+    panelStatus.textContent = 'Ready when you are';
+    panelBody.innerHTML = `
+      <div class="clock" id="clock">${fmt(secs)}</div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="controls" id="controls"></div>`;
+    setControls('ready');
+  }
+
+  function setControls(state){
+    const c = document.getElementById('controls'); if (!c) return;
+    if (state === 'ready'){
+      c.innerHTML = `<button class="btn" id="start">I'm ready — start</button>`;
+      c.querySelector('#start').onclick = startTimer;
+    } else if (state === 'running'){
+      c.innerHTML = `<button class="btn ghost" id="pause">Pause</button><button class="btn ghost" id="reset">Reset</button>`;
+      c.querySelector('#pause').onclick = pauseTimer;
+      c.querySelector('#reset').onclick = resetTimer;
+    } else if (state === 'paused'){
+      c.innerHTML = `<button class="btn" id="resume">Resume</button><button class="btn ghost" id="reset">Reset</button>`;
+      c.querySelector('#resume').onclick = startTimer;
+      c.querySelector('#reset').onclick = resetTimer;
+    } else if (state === 'done'){
+      c.innerHTML = `<button class="btn ghost" id="again">Again</button><button class="btn" id="next">Next roll</button>`;
+      c.querySelector('#again').onclick = resetTimer;
+      c.querySelector('#next').onclick = roll;
+    }
+  }
+
+  function startTimer(){
+    if (!timer) return;
+    audio(); tick(660, .1, .15);
+    timer.running = true;
+    timer.endAt = performance.now() + timer.remaining * 1000;
+    panelStatus.textContent = 'Go';
+    setControls('running');
+    keepAwake(true);
+    loop();
+  }
+
+  function loop(){
+    if (!timer || !timer.running) return;
+    timer.remaining = (timer.endAt - performance.now()) / 1000;
+    const clock = document.getElementById('clock'), bar = document.getElementById('bar');
+    const whole = Math.ceil(timer.remaining);
+    if (clock) clock.textContent = fmt(timer.remaining);
+    if (bar) bar.style.transform = `scaleX(${Math.max(0, timer.remaining / timer.total)})`;
+    if (whole <= 3 && whole > 0 && timer.lastBeep !== whole){ timer.lastBeep = whole; tick(880, .12, .2); }
+    if (whole === Math.floor(timer.total / 2) && timer.total >= 60 && timer.lastBeep !== 'half'){
+      timer.lastBeep = 'half'; panelStatus.textContent = 'Halfway';
+    }
+    if (timer.remaining <= 0){
+      timer.running = false; timer.remaining = 0;
+      if (clock){ clock.textContent = 'Done'; clock.classList.add('done'); }
+      panelStatus.textContent = 'Well earned';
+      finale(); keepAwake(false);
+      setControls('done');
+      return;
+    }
+    timer.raf = requestAnimationFrame(loop);
+  }
+
+  function pauseTimer(){
+    if (!timer) return;
+    timer.running = false;
+    cancelAnimationFrame(timer.raf);
+    timer.remaining = Math.max(0, (timer.endAt - performance.now()) / 1000);
+    panelStatus.textContent = 'Paused';
+    setControls('paused');
+    keepAwake(false);
+  }
+
+  function resetTimer(){
+    if (!timer) return;
+    const {total} = timer;
+    const ex = panelLabel.textContent;
+    showTimer(ex, total);
+  }
+
+  function showNote(exercise, d){
+    stopTimer();
+    panelLabel.textContent = exercise;
+    let html = '';
+    if (d.type === 'reps'){
+      panelStatus.textContent = d.label;
+      html = `<p class="note">Count them out loud. <em>Roll again when you're done.</em></p>`;
+    } else if (d.type === 'zero'){
+      panelStatus.textContent = 'Reprieve';
+      html = `<p class="note">Zero. Nothing. Enjoy it. <em>Roll again if you're feeling brave.</em></p>`;
+    } else {
+      panelStatus.textContent = 'To failure';
+      html = `<p class="note">Keep going until your form breaks. <em>Then stop — that's the set.</em></p>`;
+    }
+    panelBody.innerHTML = html;
+  }
+
+  // ---------- Roll ----------
+  let rolling = false;
+  async function roll(){
+    if (rolling) return;
+    rolling = true;
+    audio();
+    stopTimer();
+    panel.classList.remove('show');
+    rollBtn.disabled = true;
+    rollBtn.textContent = 'Rolling…';
+
+    const exI = rand(EXERCISES.length);
+    const durI = rand(DURATIONS.length);
+    await Promise.all([
+      spin(reelEx, EXERCISES, exI, 2200),
+      spin(reelDur, DURATIONS.map(d => d.label), durI, 3100)
+    ]);
+
+    rolls++;
+    issue.textContent = `Set No. ${rolls}`;
+    const d = DURATIONS[durI];
+    if (d.secs) showTimer(EXERCISES[exI], d.secs);
+    else showNote(EXERCISES[exI], d);
+    panel.classList.add('show');
+    panel.scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest'});
+
+    rollBtn.disabled = false;
+    rollBtn.textContent = 'Roll again';
+    rolling = false;
+  }
+
+  rollBtn.addEventListener('click', roll);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && timer && timer.running) keepAwake(true);
+  });
+})();
+</script>
+</body>
+</html>
